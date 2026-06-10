@@ -8,7 +8,7 @@
     "test": "vitest",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && npx @storyblok/field-plugin-cli@latest deploy"
+    "deploy": "npm run build && npx @storyblok/field-plugin-cli@latest deploy --name kontainer --scope organization --skipPrompts"
   },
   "dependencies": {
     "@storyblok/field-plugin": "1.7.1",
