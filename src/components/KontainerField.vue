@@ -97,9 +97,6 @@ const isConfigured = computed(() => !!host.value && !!managementToken.value)
 const openPicker = () => {
   if (plugin.type === 'loaded') plugin.actions.setModalOpen(true)
 }
-const closePicker = () => {
-  if (plugin.type === 'loaded') plugin.actions.setModalOpen(false)
-}
 const removeAsset = () => {
   if (plugin.type === 'loaded') plugin.actions.setContent(null)
 }
@@ -300,14 +297,6 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
         aria-modal="true"
         aria-label="Kontainer asset picker"
       >
-        <button
-          class="kontainer-close"
-          type="button"
-          aria-label="Close picker"
-          @click="closePicker"
-        >
-          ✕
-        </button>
         <iframe
           v-if="pickerUrl"
           class="kontainer-iframe"
@@ -405,24 +394,5 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
   height: 100%;
   border: 0;
   background-color: #fff;
-}
-
-.kontainer-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 1;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  background-color: #fff;
-  border-radius: 999px;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(16, 21, 37, 0.18);
-}
-
-.kontainer-close:hover {
-  background-color: #f1f2f6;
 }
 </style>
