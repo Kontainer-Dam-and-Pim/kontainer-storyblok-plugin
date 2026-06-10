@@ -1,29 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useFieldPlugin } from '@storyblok/field-plugin/vue3'
 
-// Subset of the Kontainer FileInfo payload we care about. Kontainer posts the
-// full object; we persist it verbatim as the field value.
-type KontainerAsset = {
+// What Kontainer posts back: the FileInfo plus a base64 data URL of the bytes.
+type KontainerFile = {
   url: string
-  thumbnailUrl?: string
-  urlBaseName?: string
+  dataUrl?: string | null
   fileName?: string
-  fileId?: number
-  folderId?: number
+  urlBaseName?: string
   alt?: string | null
-  description?: string | null
-  type?: string
-  extension?: string
   originalWidth?: number | null
   originalHeight?: number | null
   [key: string]: unknown
 }
 
+// A real Storyblok asset (what we store after uploading to the asset library).
+type StoryblokAsset = {
+  id: number
+  fieldtype: 'asset'
+  filename: string
+  name: string
+  alt: string
+  title: string
+  copyright: string
+  focus: string
+  is_external_url: false
+}
+
 type KontainerMessage = {
   source: 'kontainer'
   action: 'kontainer-insert'
-  data: KontainerAsset
+  data: KontainerFile
 }
 
 const isKontainerMessage = (value: unknown): value is KontainerMessage => {
@@ -41,19 +48,31 @@ const plugin = useFieldPlugin({
   enablePortalModal: true,
   validateContent: (content: unknown) => ({
     content:
-      content && typeof content === 'object' ? (content as KontainerAsset) : null,
+      content && typeof content === 'object' ? (content as StoryblokAsset) : null,
   }),
 })
 
-// Normalise the configured host: strip protocol and trailing slashes.
-const host = computed(() => {
-  if (plugin.type !== 'loaded') return ''
-  const options = plugin.data.options as Record<string, string> | undefined
-  return (options?.kontainerHost ?? '')
+const status = ref<'idle' | 'uploading' | 'error'>('idle')
+const errorMessage = ref('')
+
+const options = computed(
+  () =>
+    (plugin.type === 'loaded'
+      ? (plugin.data.options as Record<string, string>)
+      : {}) ?? {},
+)
+
+// Normalise the configured Kontainer host: strip protocol and trailing slashes.
+const host = computed(() =>
+  (options.value.kontainerHost ?? '')
     .trim()
     .replace(/^https?:\/\//, '')
-    .replace(/\/+$/, '')
-})
+    .replace(/\/+$/, ''),
+)
+
+const managementToken = computed(() =>
+  (options.value.storyblokManagementToken ?? '').trim(),
+)
 
 const pickerUrl = computed(() => {
   if (!host.value) return ''
@@ -65,33 +84,138 @@ const pickerUrl = computed(() => {
   return `https://${host.value}/login-cms-redirect?${params.toString()}`
 })
 
-const asset = computed<KontainerAsset | null>(() =>
-  plugin.type === 'loaded' ? (plugin.data.content as KontainerAsset | null) : null,
+const asset = computed<StoryblokAsset | null>(() =>
+  plugin.type === 'loaded' ? (plugin.data.content as StoryblokAsset | null) : null,
 )
 
 const isModalOpen = computed(
   () => plugin.type === 'loaded' && plugin.data.isModalOpen,
 )
 
+const isConfigured = computed(() => !!host.value && !!managementToken.value)
+
 const openPicker = () => {
   if (plugin.type === 'loaded') plugin.actions.setModalOpen(true)
 }
-
 const closePicker = () => {
   if (plugin.type === 'loaded') plugin.actions.setModalOpen(false)
 }
-
 const removeAsset = () => {
   if (plugin.type === 'loaded') plugin.actions.setContent(null)
 }
 
-const onMessage = (event: MessageEvent) => {
+// Storyblok regions are served from region-specific Management API hosts.
+// Derive the host from the editor (parent frame) origin, default to EU.
+const managementHost = (): string => {
+  let appOrigin = ''
+  try {
+    const ancestors = window.location.ancestorOrigins
+    appOrigin = document.referrer || (ancestors && ancestors[0]) || ''
+  } catch {
+    appOrigin = ''
+  }
+  const map: Record<string, string> = {
+    'app-us.storyblok.com': 'api-us.storyblok.com',
+    'app-ca.storyblok.com': 'api-ca.storyblok.com',
+    'app-ap.storyblok.com': 'api-ap.storyblok.com',
+    storyblokchina: 'app.storyblokchina.cn',
+    'app.storyblok.com': 'mapi.storyblok.com',
+  }
+  for (const [appHost, mapiHost] of Object.entries(map)) {
+    if (appOrigin.includes(appHost)) return mapiHost
+  }
+  return 'mapi.storyblok.com'
+}
+
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> =>
+  (await fetch(dataUrl)).blob()
+
+/**
+ * Upload the file bytes into the Storyblok space's asset library via the
+ * Management API (signed upload -> S3 -> finish). Produces a real, self-hosted
+ * Storyblok asset (a.storyblok.com), not an external link.
+ */
+const uploadToStoryblok = async (file: KontainerFile): Promise<StoryblokAsset> => {
+  if (plugin.type !== 'loaded') throw new Error('Plugin not loaded.')
+  const token = managementToken.value
+  const spaceId = plugin.data.spaceId
+  if (!token) throw new Error('Storyblok management token is not configured.')
+  if (!spaceId) throw new Error('Could not determine the Storyblok space id.')
+  if (!file.dataUrl) throw new Error('Kontainer did not return the file bytes.')
+
+  const base = `https://${managementHost()}/v1/spaces/${spaceId}/assets`
+  const filename = file.fileName || file.urlBaseName || 'asset'
+
+  // 1. Request a signed S3 upload.
+  const signBody: Record<string, unknown> = { filename }
+  if (file.originalWidth && file.originalHeight) {
+    signBody.size = `${file.originalWidth}x${file.originalHeight}`
+  }
+  const signRes = await fetch(base, {
+    method: 'POST',
+    headers: { Authorization: token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(signBody),
+  })
+  if (!signRes.ok) throw new Error(`Signed-upload request failed (${signRes.status}).`)
+  const signed = await signRes.json()
+
+  // 2. Upload the bytes to S3 (signed fields first, file last).
+  const blob = await dataUrlToBlob(file.dataUrl)
+  const form = new FormData()
+  Object.entries(signed.fields ?? {}).forEach(([key, value]) =>
+    form.append(key, String(value)),
+  )
+  form.append('file', blob, filename)
+  const s3Res = await fetch(signed.post_url, { method: 'POST', body: form })
+  if (!s3Res.ok) throw new Error(`S3 upload failed (${s3Res.status}).`)
+
+  // 3. Finalize. The finish response returns the completed asset object,
+  // whose url is region-correct — prefer it over guessing the CDN host.
+  const finishRes = await fetch(`${base}/${signed.id}/finish_upload`, {
+    method: 'GET',
+    headers: { Authorization: token },
+  })
+  if (!finishRes.ok) throw new Error(`Finish upload failed (${finishRes.status}).`)
+  const finished = await finishRes.json().catch(() => ({}))
+
+  const publicUrl =
+    finished.pretty_url ||
+    finished.filename ||
+    signed.public_url ||
+    signed.pretty_url ||
+    (signed.fields?.key ? `https://a.storyblok.com/${signed.fields.key}` : file.url)
+
+  return {
+    id: signed.id,
+    fieldtype: 'asset',
+    filename: publicUrl,
+    name: filename,
+    alt: file.alt || '',
+    title: '',
+    copyright: '',
+    focus: '',
+    is_external_url: false,
+  }
+}
+
+const onMessage = async (event: MessageEvent) => {
   if (plugin.type !== 'loaded') return
   // Only trust messages from the configured Kontainer origin.
   if (host.value && event.origin !== `https://${host.value}`) return
   if (!isKontainerMessage(event.data)) return
-  plugin.actions.setContent(event.data.data)
-  plugin.actions.setModalOpen(false)
+
+  status.value = 'uploading'
+  errorMessage.value = ''
+  try {
+    const uploaded = await uploadToStoryblok(event.data.data)
+    await plugin.actions.setContent(uploaded)
+    status.value = 'idle'
+    plugin.actions.setModalOpen(false)
+  } catch (error) {
+    status.value = 'error'
+    errorMessage.value = error instanceof Error ? error.message : 'Upload failed.'
+    plugin.actions.setModalOpen(false)
+  }
 }
 
 onMounted(() => window.addEventListener('message', onMessage))
@@ -106,19 +230,20 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
     <template v-if="asset">
       <img
         class="kontainer-preview"
-        :src="asset.thumbnailUrl || asset.url"
-        :alt="asset.alt || asset.fileName || 'Selected Kontainer asset'"
+        :src="asset.filename"
+        :alt="asset.alt || asset.name"
       >
       <p
-        v-if="asset.fileName"
+        v-if="asset.name"
         class="kontainer-filename"
-        :title="asset.fileName"
+        :title="asset.name"
       >
-        {{ asset.fileName }}
+        {{ asset.name }}
       </p>
       <button
         class="kontainer-btn"
         type="button"
+        :disabled="!isConfigured || status === 'uploading'"
         @click="openPicker"
       >
         Replace asset
@@ -126,6 +251,7 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
       <button
         class="kontainer-btn kontainer-btn--ghost"
         type="button"
+        :disabled="status === 'uploading'"
         @click="removeAsset"
       >
         Remove asset
@@ -136,19 +262,33 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
       <button
         class="kontainer-btn"
         type="button"
-        :disabled="!host"
+        :disabled="!isConfigured || status === 'uploading'"
         @click="openPicker"
       >
-        Select from Kontainer
+        {{ status === 'uploading' ? 'Importing…' : 'Select from Kontainer' }}
       </button>
-      <p
-        v-if="!host"
-        class="kontainer-hint"
-      >
-        Set the <code>kontainerHost</code> plugin option
-        (e.g. <code>company.kontainer.com</code>) to enable the picker.
-      </p>
     </template>
+
+    <p
+      v-if="!host"
+      class="kontainer-hint"
+    >
+      Set the <code>kontainerHost</code> plugin option
+      (e.g. <code>company.kontainer.com</code>).
+    </p>
+    <p
+      v-else-if="!managementToken"
+      class="kontainer-hint"
+    >
+      Set the <code>storyblokManagementToken</code> plugin option so files can be
+      imported into this space's asset library.
+    </p>
+    <p
+      v-if="status === 'error'"
+      class="kontainer-error"
+    >
+      {{ errorMessage }}
+    </p>
 
     <teleport
       v-if="isModalOpen"
@@ -217,7 +357,7 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
   transition: background-color 0.15s ease-in-out;
 }
 
-.kontainer-btn:hover {
+.kontainer-btn:hover:not(:disabled) {
   background: #2b3656;
 }
 
@@ -233,7 +373,7 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
   border-color: #c7cad6;
 }
 
-.kontainer-btn--ghost:hover {
+.kontainer-btn--ghost:hover:not(:disabled) {
   background: #f1f2f6;
 }
 
@@ -241,6 +381,12 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
   margin: 0;
   font-size: 0.75rem;
   color: #6b7280;
+}
+
+.kontainer-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #c0341d;
 }
 
 .kontainer-overlay {

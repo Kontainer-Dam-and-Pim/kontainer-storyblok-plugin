@@ -3,6 +3,10 @@
     {
       "name": "kontainerHost",
       "value": "company.kontainer.com"
+    },
+    {
+      "name": "storyblokManagementToken",
+      "value": ""
     }
   ]
 }

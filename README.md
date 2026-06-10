@@ -1,55 +1,58 @@
 # Kontainer Asset Picker — Storyblok Field Plugin
 
 A Storyblok [field plugin](https://www.storyblok.com/docs/plugins/field-plugins/introduction)
-that opens Kontainer in CMS mode and lets editors pick a file straight into a
-field. Mirrors the Kontainer Figma plugin: it embeds Kontainer
-(`/login-cms-redirect?cmsMode=1`) in a modal iframe, the editor picks an asset,
-and Kontainer posts the selected file back into the field value.
+that opens Kontainer in CMS mode, lets editors pick a file, and **imports the
+actual file into the Storyblok space's asset library** — producing a real,
+self-hosted Storyblok asset (`a.storyblok.com`), not an external link.
 
 ## How it works
 
-1. The field renders a **Select from Kontainer** button.
-2. Clicking it opens a portal modal containing an iframe:
-   `https://<kontainerHost>/login-cms-redirect?cmsMode=1&cmsPluginType=storyblok&cmsPluginId=storyblok`
-3. The editor authenticates (if needed) and picks a file inside Kontainer.
-4. Kontainer's `cmsStoryblokCallback` posts a structured message to the parent:
+1. The field renders a **Select from Kontainer** button (opens a modal iframe
+   with Kontainer in CMS mode).
+2. The editor authenticates (if needed) and picks a file in Kontainer.
+3. Kontainer fetches the file bytes (authenticated, in its own session) and
+   posts them back to the plugin as a base64 data URL:
    ```js
-   { source: 'kontainer', action: 'kontainer-insert', data: <FileInfo> }
+   { source: 'kontainer', action: 'kontainer-insert', data: { ...fileInfo, dataUrl } }
    ```
-5. The plugin validates `event.origin` against `kontainerHost`, stores the full
-   `FileInfo` object as the field value, and closes the modal.
+4. The plugin uploads those bytes to the Storyblok **Management API** directly
+   from the browser (signed upload → S3 → `finish_upload`), then stores the
+   resulting Storyblok `Asset` as the field value.
 
-The stored value is the complete Kontainer `FileInfo` object
-(`url`, `thumbnailUrl`, `alt`, `fileName`, `fileId`, `originalWidth`,
-`originalHeight`, …). Single-select.
+The Management API host is auto-derived from the editor's region (EU/US/CA/AP/CN),
+defaulting to EU — no region config.
 
-## Configuration
+## Configuration (2 options)
 
-Set the `kontainerHost` option on the field type (host only, no protocol):
+| Option | Required | Value |
+| --- | --- | --- |
+| `kontainerHost` | yes | Your Kontainer host, no protocol — e.g. `company.kontainer.com` |
+| `storyblokManagementToken` | yes | A Storyblok [Personal Access Token](https://app.storyblok.com/#/me/account?tab=token) (or space token) with asset write access |
 
-```json
-{
-  "options": [
-    { "name": "kontainerHost", "value": "company.kontainer.com" }
-  ]
-}
-```
+See `field-plugin.config.json`. In the Sandbox the options apply automatically;
+`npm run deploy` applies them in production.
 
-See `field-plugin.config.json`. In the Sandbox the option is applied
-automatically; `npm run deploy` applies it in production.
+> **Security tradeoff.** The Management API token is stored as a plugin option,
+> so it is delivered to the browser of every editor who uses this field. Anyone
+> with that token has write access to the space's assets. This is the price of
+> "no backend / simplest setup". If that exposure is unacceptable, move the
+> upload behind a server that holds the token (the plugin would POST the bytes
+> there instead of calling the Management API directly).
 
 ## Kontainer backend requirements
 
-The plugin relies on two things in the Kontainer app:
-
-1. **Dedicated callback** — `CMSPluginType.STORYBLOK` enum value +
-   `cmsStoryblokCallback` branch in `frontend/utils/cmsMode.ts`.
-2. **CSP `frame-ancestors`** — Kontainer's `ContentSecurityPolicy` middleware
-   gates iframe embedding per client. Both the **Storyblok field-plugin serving
-   origin** and **`https://app.storyblok.com`** must be allowlisted in the
-   client's `headerPolicies` (the browser checks the entire ancestor chain, and
-   Kontainer is framed two levels deep: Storyblok editor → field-plugin iframe →
-   Kontainer iframe). Without this, the browser blocks the iframe.
+1. **Enable the Storyblok integration** for the client (admin toggle
+   `switch_storyblok_integration_enabled`). This drives the CSP/cookie config
+   below.
+2. **CSP `frame-ancestors`** — the Storyblok field-plugin serving origin **and**
+   `https://app.storyblok.com` must be allowlisted (Kontainer is framed two
+   levels deep; the whole ancestor chain is checked). Configured under
+   `kontainer.integrations.storyblok.origins`.
+3. **`connect-src` / CDN CORS** — Kontainer's CMS-mode page fetches the file
+   bytes from its CDN to build the data URL; the Storyblok-enabled client gets
+   the same CDN allowances as Figma.
+4. **`SameSite=None`** cookies — so the embedded (cross-site) Kontainer iframe
+   stays authenticated. Enabled when the integration is on.
 
 ## Develop
 
@@ -57,8 +60,8 @@ The plugin relies on two things in the Kontainer app:
 npm run dev
 ```
 
-Open the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/), set the
-`kontainerHost` option, and exercise the picker.
+Open the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/), set both
+options, and exercise the picker.
 
 ## Deploy
 
