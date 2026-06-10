@@ -1,3 +1,8 @@
 {
-  "options": []
+  "options": [
+    {
+      "name": "kontainerHost",
+      "value": "company.kontainer.com"
+    }
+  ]
 }

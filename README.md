@@ -1,88 +1,71 @@
-# Storyblok Vue 3 Field Plugin
+# Kontainer Asset Picker — Storyblok Field Plugin
 
-This project was created using Vue 3 and Typescript. It consists of a set of base functionalities, such as value updating, modal toggling and asset selection. This starter is intended to help developers when creating their own Storyblok Field Plugin.
+A Storyblok [field plugin](https://www.storyblok.com/docs/plugins/field-plugins/introduction)
+that opens Kontainer in CMS mode and lets editors pick a file straight into a
+field. Mirrors the Kontainer Figma plugin: it embeds Kontainer
+(`/login-cms-redirect?cmsMode=1`) in a modal iframe, the editor picks an asset,
+and Kontainer posts the selected file back into the field value.
 
-## Composition API vs Options API
+## How it works
 
-You can choose either option. This template is written using the Composition API, and you can view the implementation in the `src/useFieldPlugin.ts` file.
+1. The field renders a **Select from Kontainer** button.
+2. Clicking it opens a portal modal containing an iframe:
+   `https://<kontainerHost>/login-cms-redirect?cmsMode=1&cmsPluginType=storyblok&cmsPluginId=storyblok`
+3. The editor authenticates (if needed) and picks a file inside Kontainer.
+4. Kontainer's `cmsStoryblokCallback` posts a structured message to the parent:
+   ```js
+   { source: 'kontainer', action: 'kontainer-insert', data: <FileInfo> }
+   ```
+5. The plugin validates `event.origin` against `kontainerHost`, stores the full
+   `FileInfo` object as the field value, and closes the modal.
 
-If you prefer to use the Options API, you can refer to [the Vue 2 template](https://github.com/storyblok/field-plugin/blob/main/packages/cli/templates/vue2/src/App.vue).
+The stored value is the complete Kontainer `FileInfo` object
+(`url`, `thumbnailUrl`, `alt`, `fileName`, `fileId`, `originalWidth`,
+`originalHeight`, …). Single-select.
 
-## Usage
+## Configuration
 
-For development, run the application locally with
-
-```shell
-npm run dev
-```
-
-and open the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/).
-
-To build the project, run
-
-```shell
-npm run build
-```
-
-Deploy the field plugin with the CLI. Issue a [personal access token](https://app.storyblok.com/#/me/account?tab=token), rename `.env.local.example` to `.env.example`, open the file, set the value `STORYBLOK_PERSONAL_ACCESS_TOKEN`, and run
-
-```shell
-npm run deploy
-```
-
-## Manifest File for Field Plugins
-
-The manifest file is a configuration that enhances the functionality of your field plugin. This JSON file, named `field-plugin.config.json` and located in your project's root folder, is optional but highly recommended.
-
-The manifest file allows you to configure [options](https://www.storyblok.com/docs/plugins/field-plugins/introduction#options) for your field plugin. When developing your field plugin with the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/), the options are applied by default. Also, the deploy command automatically applies the options in production. So, you no longer need to configure the options manually.
-
-### Configuring a Manifest File
-
-The options list within the file `field-plugin.config.json` should consist of key-value objects representing the essential options required for your field plugin to function correctly, along with their corresponding values. This is an example of how it should be structured:
+Set the `kontainerHost` option on the field type (host only, no protocol):
 
 ```json
 {
   "options": [
-    {
-      "name": "myPluginInitialValue",
-      "value": 100
-    }
+    { "name": "kontainerHost", "value": "company.kontainer.com" }
   ]
 }
 ```
 
-Now, you just need to access these options in your code like in the example below:
+See `field-plugin.config.json`. In the Sandbox the option is applied
+automatically; `npm run deploy` applies it in production.
 
-```js
-const { type, data, actions } = useFieldPlugin()
+## Kontainer backend requirements
 
-console.log(data.options.myPluginInitialValue)
+The plugin relies on two things in the Kontainer app:
+
+1. **Dedicated callback** — `CMSPluginType.STORYBLOK` enum value +
+   `cmsStoryblokCallback` branch in `frontend/utils/cmsMode.ts`.
+2. **CSP `frame-ancestors`** — Kontainer's `ContentSecurityPolicy` middleware
+   gates iframe embedding per client. Both the **Storyblok field-plugin serving
+   origin** and **`https://app.storyblok.com`** must be allowlisted in the
+   client's `headerPolicies` (the browser checks the entire ancestor chain, and
+   Kontainer is framed two levels deep: Storyblok editor → field-plugin iframe →
+   Kontainer iframe). Without this, the browser blocks the iframe.
+
+## Develop
+
+```sh
+npm run dev
 ```
 
-## Next Steps
+Open the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/), set the
+`kontainerHost` option, and exercise the picker.
 
-Read more about field plugins [on GitHub](https://github.com/storyblok/field-plugin).
+## Deploy
 
-Set up continuous integration with the [CLI](https://www.npmjs.com/package/@storyblok/field-plugin-cli). Define an environmental variable `STORYBLOK_PERSONAL_ACCESS_TOKEN`, and use the `--name` and `--skipPrompts` options as such:
+Issue a [personal access token](https://app.storyblok.com/#/me/account?tab=token),
+copy `.env.local.example` to `.env.local`, set `STORYBLOK_PERSONAL_ACCESS_TOKEN`,
+then:
 
-```shell
-npm run deploy --name $NAME --skipPrompts
+```sh
+npm run deploy
 ```
-
-[@storyblok/design-system](https://www.npmjs.com/package/@storyblok/design-system) is Storyblok's component library for Vue. To add it to this project, follow the instructions in the [readme](https://www.npmjs.com/package/@storyblok/design-system).
-
-## Clean up the boilerplate
-
-To start from a blank state, replace the example component `<FieldPluginExample />` from `src/App.vue` with `<FieldPlugin />`.
-
-## Continuous delivery
-
-Set up [continuous delivery](https://www.storyblok.com/docs/plugins/field-plugins/continuous-delivery) with the CLI. Define an environmental variable `STORYBLOK_PERSONAL_ACCESS_TOKEN`, and use the `--name` and `--skipPrompts` options as such:
-
-```shell
-npm run deploy --name $NAME --skipPrompts
-```
-
-## Design system
-
-We created our [blok.ink](https://www.storyblok.com/docs/guide/in-depth/design-system) design system to allow our customers to build great integrated experiences while maintaining Storyblok's overall design.

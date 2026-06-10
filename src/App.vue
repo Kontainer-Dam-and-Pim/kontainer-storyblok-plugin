@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import _FieldPlugin from './components/FieldPlugin.vue'
-import FieldPluginExample from './components/FieldPluginExample/index.vue'
+import KontainerField from './components/KontainerField.vue'
 </script>
 
 <template>
-  <FieldPluginExample />
+  <KontainerField />
 </template>
