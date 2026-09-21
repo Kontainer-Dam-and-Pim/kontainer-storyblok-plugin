@@ -38,13 +38,20 @@ every field using this plugin needs its own values.
 | `maxImportMb` | no | Import size ceiling, default `50` |
 
 > **Security tradeoff in `import` mode.** The Management API token is a plugin
-> option, so it is delivered to the browser of every editor who uses the field,
-> and a Storyblok PAT is account-wide rather than space-scoped. Storyblok
-> provides no sanctioned place for a credential in a field plugin — space-level
-> settings are for Space and Tool plugins only, and their docs state plainly
-> that "credentials such as secrets and passwords should not be stored" there.
-> If you need self-hosted assets *and* cannot expose a token, the upload has to
+> option, so it is delivered to the browser of every editor who uses the field.
+> Storyblok provides no sanctioned place for a credential in a field plugin —
+> space-level settings are for Space and Tool plugins only, and their docs state
+> plainly that "credentials such as secrets and passwords should not be stored"
+> there.
+>
+> Mint a **scoped** token for this: Storyblok personal access tokens now take
+> granular scopes and a space restriction, so give it Assets only, on the one
+> space that needs it. That bounds the exposure to that space's asset library
+> instead of the whole account. If even that is unacceptable, the upload has to
 > move behind a Kontainer-hosted endpoint that holds the credential server-side.
+>
+> Legacy unscoped tokens stop working on 30 November 2026, when Storyblok
+> revokes them regardless of their own expiry.
 
 Set `storyblokRegion` explicitly for any non-EU space. The plugin can infer the
 region from the editor origin, but only in Chromium — inside the sandboxed
