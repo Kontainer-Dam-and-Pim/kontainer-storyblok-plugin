@@ -5,7 +5,19 @@
       "value": "company.kontainer.com"
     },
     {
+      "name": "mode",
+      "value": "external"
+    },
+    {
+      "name": "storyblokRegion",
+      "value": ""
+    },
+    {
       "name": "storyblokManagementToken",
+      "value": ""
+    },
+    {
+      "name": "maxImportMb",
       "value": ""
     }
   ]
