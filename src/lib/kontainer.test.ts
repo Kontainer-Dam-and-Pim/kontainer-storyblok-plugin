@@ -3,6 +3,7 @@ import {
   approxBytesFromDataUrl,
   asStoryblokAsset,
   externalAssetFromFile,
+  focusFromFile,
   formatBytes,
   importedAssetFromFile,
   isImageLike,
@@ -182,6 +183,71 @@ describe('isImageLike', () => {
   })
 })
 
+describe('focusFromFile', () => {
+  it('expresses the focal point as a 1px rect in Storyblok notation', () => {
+    expect(focusFromFile(file({ focalPointX: 400, focalPointY: 300 }))).toBe(
+      '400x300:401x301',
+    )
+  })
+
+  it('is empty when Kontainer set no focal point', () => {
+    expect(focusFromFile(file())).toBe('')
+  })
+
+  it('accepts a focal point at the origin', () => {
+    expect(focusFromFile(file({ focalPointX: 0, focalPointY: 0 }))).toBe(
+      '0x0:1x1',
+    )
+  })
+
+  it('scales into the download template dimensions', () => {
+    // The URL points at the 800x450 rendition, but the focal point is stored
+    // against the 1600x900 original.
+    expect(
+      focusFromFile(
+        file({
+          focalPointX: 400,
+          focalPointY: 300,
+          customMaskWidth: 800,
+          customMaskHeight: 450,
+        }),
+      ),
+    ).toBe('200x150:201x151')
+  })
+
+  it('yields no focus rather than a wrong one when mask dimensions are unusable', () => {
+    expect(
+      focusFromFile(
+        file({
+          focalPointX: 400,
+          focalPointY: 300,
+          customMaskWidth: null,
+          customMaskHeight: null,
+        }),
+      ),
+    ).toBe('')
+  })
+
+  it('clamps a point that falls outside the frame', () => {
+    expect(focusFromFile(file({ focalPointX: 5000, focalPointY: 5000 }))).toBe(
+      '1599x899:1600x900',
+    )
+  })
+
+  it('is empty when the source dimensions are missing', () => {
+    expect(
+      focusFromFile(
+        file({
+          focalPointX: 400,
+          focalPointY: 300,
+          originalWidth: null,
+          originalHeight: null,
+        }),
+      ),
+    ).toBe('')
+  })
+})
+
 describe('externalAssetFromFile', () => {
   it('links the Kontainer URL without copying bytes', () => {
     const asset = externalAssetFromFile(file(), 'company.kontainer.com', at)
@@ -211,6 +277,26 @@ describe('externalAssetFromFile', () => {
       kontainer_extension: 'jpg',
       kontainer_type: 'image',
     })
+  })
+
+  it('carries the focal point onto the asset and into meta_data', () => {
+    const asset = externalAssetFromFile(
+      file({ focalPointX: 400, focalPointY: 300 }),
+      'company.kontainer.com',
+      at,
+    )
+
+    expect(asset.focus).toBe('400x300:401x301')
+    expect(asset.meta_data).toMatchObject({
+      kontainer_focal_point_x: 400,
+      kontainer_focal_point_y: 300,
+    })
+  })
+
+  it('leaves focus empty when no focal point was set', () => {
+    expect(
+      externalAssetFromFile(file(), 'company.kontainer.com', at).focus,
+    ).toBe('')
   })
 
   it('never carries the base64 payload into the stored value', () => {

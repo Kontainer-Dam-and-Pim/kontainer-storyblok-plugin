@@ -13,6 +13,10 @@ First release prepared for Partner Portal distribution.
 - The saved value now carries the Kontainer reference (`kontainer_file_id`,
   `kontainer_url`, host, thumbnail, extension, type) in the asset's
   `meta_data`, which is what makes de-duplication and re-sync possible later.
+- A focal point set in Kontainer is carried onto the Storyblok asset. `focus`
+  gets Storyblok's `X1xY1:X2xY2` notation and `meta_data` keeps the raw pixel
+  coordinates, since the image service does not transform an external URL.
+  Coordinates are scaled when a download template serves a resized rendition.
 - The Management API region is now an explicit `storyblokRegion` option.
   Origin sniffing remains only as a fallback — it does not work in Firefox or
   Safari, where non-EU spaces previously failed with an opaque 401.
@@ -36,4 +40,3 @@ First release prepared for Partner Portal distribution.
 - MIT `LICENSE`, package metadata, this changelog.
 - Unit tests over the value mapping, option parsing, region resolution and
   preview logic.
-- GitHub Actions workflow: test and build on every push, deploy from `master`.

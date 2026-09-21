@@ -27,6 +27,12 @@ export type KontainerFile = {
   dataUrl?: string | null
   originalWidth?: number | null
   originalHeight?: number | null
+  focalPointX?: number | null
+  focalPointY?: number | null
+  // Present only when a download template (CdnFileMask) applies, in which case
+  // `url` points at an image of these dimensions rather than the original.
+  customMaskWidth?: number | null
+  customMaskHeight?: number | null
   [key: string]: unknown
 }
 
@@ -190,6 +196,61 @@ export const isImageLike = (
   return IMAGE_EXTENSIONS.includes(ext)
 }
 
+const positiveNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : null
+
+const finiteNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max)
+
+/**
+ * Translate Kontainer's focal point into Storyblok's `focus` string.
+ *
+ * Both sides use pixel coordinates: Kontainer stores `FocalPoint` as int x/y,
+ * and Storyblok's focal point filter takes `X1xY1:X2xY2` in the same notation
+ * as its crop operation, so a focus point is expressed as a 1px rect.
+ *
+ * The coordinates must belong to the image the URL actually points at. When a
+ * download template applies, that is a resized image (`customMaskWidth` /
+ * `customMaskHeight`) while the stored focal point is still in the original's
+ * coordinates, so it has to be scaled — the same thing FocalPointSpec::scaledBy
+ * does server-side for downloads. A masked file whose dimensions are unusable
+ * yields no focus rather than a confidently wrong one.
+ */
+export const focusFromFile = (file: KontainerFile): string => {
+  const x = finiteNumber(file.focalPointX)
+  const y = finiteNumber(file.focalPointY)
+  if (x === null || y === null) return ''
+
+  const sourceWidth = positiveNumber(file.originalWidth)
+  const sourceHeight = positiveNumber(file.originalHeight)
+  if (sourceWidth === null || sourceHeight === null) return ''
+
+  const isMasked = 'customMaskWidth' in file || 'customMaskHeight' in file
+  const targetWidth = isMasked
+    ? positiveNumber(file.customMaskWidth)
+    : sourceWidth
+  const targetHeight = isMasked
+    ? positiveNumber(file.customMaskHeight)
+    : sourceHeight
+  if (targetWidth === null || targetHeight === null) return ''
+
+  const scaledX = Math.round(x * (targetWidth / sourceWidth))
+  const scaledY = Math.round(y * (targetHeight / sourceHeight))
+
+  // Leave room for the second corner, and absorb a focal point that sits
+  // outside the frame (a rotated original is stored unrotated, so the point
+  // can land beyond the rotated dimensions reported here).
+  const pointX = clamp(scaledX, 0, targetWidth - 1)
+  const pointY = clamp(scaledY, 0, targetHeight - 1)
+
+  return `${pointX}x${pointY}:${pointX + 1}x${pointY + 1}`
+}
+
 /**
  * Provenance for the saved value. Keeping the Kontainer id on the asset is what
  * makes de-duplication and "the file changed in Kontainer" re-sync possible
@@ -212,6 +273,15 @@ export const kontainerMetaData = (
   const extension = extensionOf(file)
   if (extension) meta.kontainer_extension = extension
   if (file.type) meta.kontainer_type = file.type
+  // Kept raw alongside the derived `focus`: these are usable directly with
+  // Kontainer's own transformation parameters, which is the only thing that
+  // applies to an externally linked file.
+  const focalX = finiteNumber(file.focalPointX)
+  const focalY = finiteNumber(file.focalPointY)
+  if (focalX !== null && focalY !== null) {
+    meta.kontainer_focal_point_x = focalX
+    meta.kontainer_focal_point_y = focalY
+  }
   return meta
 }
 
@@ -225,7 +295,7 @@ const baseAsset = (
   alt: file.alt || '',
   title: file.description || '',
   copyright: '',
-  focus: '',
+  focus: focusFromFile(file),
   source: 'kontainer',
   meta_data: kontainerMetaData(file, host, now),
 })

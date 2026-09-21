@@ -75,10 +75,23 @@ preserved in `meta_data`:
     "kontainer_thumbnail_url": "https://company.kontainer.com/thumb/123.jpg",
     "kontainer_extension": "jpg",
     "kontainer_type": "image",
+    "kontainer_focal_point_x": 400,
+    "kontainer_focal_point_y": 300,
     "kontainer_picked_at": "2026-09-21T10:00:00.000Z"
   }
 }
 ```
+
+A focal point set in Kontainer is carried across in two forms. `focus` holds
+Storyblok's own `X1xY1:X2xY2` notation, ready for
+`/filters:focal(${asset.focus})` on an imported asset. The raw pixel
+coordinates stay in `meta_data`, because Storyblok's image service does not
+transform an external URL — for a linked file, pass them to Kontainer's own
+transformation parameters instead.
+
+When a download template applies, `url` points at a resized rendition while
+Kontainer stores the focal point against the original, so the coordinates are
+scaled into the rendition's dimensions before being written.
 
 `kontainer_file_id` is what any future de-duplication or "the file changed in
 Kontainer" re-sync will key on. Adding it to values that are already saved in
@@ -147,6 +160,9 @@ then:
 ```sh
 npm run deploy
 ```
+
+There is no CI deployment: the repository lives on Bitbucket Server, so deploys
+are run by hand from a checkout.
 
 This deploys as `kontainer` at `--scope partner-portal`. **Never change the
 `--name`**: it is the field type id stored in every customer's component
