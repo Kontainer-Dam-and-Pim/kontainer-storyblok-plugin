@@ -269,8 +269,11 @@ export const asStoryblokAsset = (content: unknown): StoryblokAsset | null => {
 /**
  * Decide how to render the saved asset. Kontainer is a DAM, so most files are
  * not images — a PDF or a video rendered into an `<img>` is just a broken icon.
- * Kontainer's own thumbnail is preferred when it has one, since it covers
- * documents and video too.
+ *
+ * Kontainer's own thumbnail is preferred when there is one, but it is often
+ * absent: CmsController returns `thumbnailUrl: null` for any non-image behind
+ * a download template, and only a stored large thumbnail otherwise. The badge
+ * is therefore the normal rendering for documents, not an edge case.
  */
 export const previewFromAsset = (asset: StoryblokAsset): Preview => {
   const meta = asset.meta_data ?? {}
