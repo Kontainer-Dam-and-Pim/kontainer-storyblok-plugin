@@ -232,20 +232,11 @@ const onMessage = async (event: MessageEvent) => {
   }
 }
 
-const onKeydown = (event: KeyboardEvent) => {
-  if (event.key !== 'Escape') return
-  if (!isModalOpen.value) return
-  if (isBusy.value) return
-  closePicker()
-}
-
 onMounted(() => {
   window.addEventListener('message', onMessage)
-  window.addEventListener('keydown', onKeydown)
 })
 onUnmounted(() => {
   window.removeEventListener('message', onMessage)
-  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -353,17 +344,7 @@ onUnmounted(() => {
         role="dialog"
         aria-modal="true"
         aria-label="Kontainer asset picker"
-        @click.self="isBusy || closePicker()"
       >
-        <button
-          class="kontainer-close"
-          type="button"
-          aria-label="Close picker"
-          :disabled="isBusy"
-          @click="closePicker"
-        >
-          ✕
-        </button>
         <iframe
           v-if="pickerUrl"
           class="kontainer-iframe"
@@ -469,38 +450,10 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(16, 21, 37, 0.6);
-  backdrop-filter: blur(2px);
-}
-
-.kontainer-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 1;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  background-color: #fff;
-  border-radius: 999px;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(16, 21, 37, 0.18);
-}
-
-.kontainer-close:hover:not(:disabled) {
-  background-color: #f1f2f6;
-}
-
-.kontainer-close:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .kontainer-iframe {
+  display: block;
   width: 100%;
   height: 100%;
   border: 0;
