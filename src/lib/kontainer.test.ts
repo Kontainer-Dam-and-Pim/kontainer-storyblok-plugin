@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   approxBytesFromDataUrl,
   asStoryblokAsset,
+  emptyAsset,
   externalAssetFromFile,
   focusFromFile,
   formatBytes,
@@ -15,6 +16,7 @@ import {
   resolveMaxImportBytes,
   resolveMode,
   resolveRegion,
+  storedAsset,
   type KontainerFile,
 } from './kontainer'
 
@@ -367,6 +369,43 @@ describe('asStoryblokAsset', () => {
     ['an asset with an empty filename', { fieldtype: 'asset', filename: '' }],
   ])('rejects %s', (_label, value) => {
     expect(asStoryblokAsset(value)).toBeNull()
+  })
+})
+
+describe('emptyAsset', () => {
+  it("matches Storyblok's empty asset field: an asset with no filename", () => {
+    expect(emptyAsset()).toMatchObject({
+      id: null,
+      fieldtype: 'asset',
+      filename: '',
+      meta_data: {},
+    })
+    expect(asStoryblokAsset(emptyAsset())).toBeNull()
+  })
+
+  it('returns a fresh object, since the SDK mutates content in place', () => {
+    const first = emptyAsset()
+    first.meta_data.kontainer_file_id = 1
+
+    expect(emptyAsset()).not.toBe(first)
+    expect(emptyAsset().meta_data).toEqual({})
+  })
+})
+
+describe('storedAsset', () => {
+  it('keeps a saved asset as it is', () => {
+    const asset = externalAssetFromFile(file(), 'company.kontainer.com', at)
+    expect(storedAsset(asset)).toBe(asset)
+  })
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['an empty string', ''],
+    ['a foreign object', { fieldtype: 'text', filename: 'a.jpg' }],
+    ['an empty asset', { fieldtype: 'asset', filename: '' }],
+  ])('turns %s into an empty asset, never null', (_label, value) => {
+    expect(storedAsset(value)).toEqual(emptyAsset())
   })
 })
 

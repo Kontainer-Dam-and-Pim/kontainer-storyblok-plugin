@@ -97,6 +97,9 @@ const { filename, alt, title, focus } = story.content.hero
 
 Request the file from `filename`; it is served by Kontainer's CDN.
 
+An empty field holds an asset with an empty `filename`, the same as
+Storyblok's own asset field, so check `filename` before rendering.
+
 Storyblok's image service cannot transform an external URL. Control size and
 format with a download template chosen in the picker, or with Kontainer's own
 transformation parameters on the URL.

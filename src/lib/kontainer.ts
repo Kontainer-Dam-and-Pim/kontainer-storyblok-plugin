@@ -325,6 +325,25 @@ export const importedAssetFromFile = (
   is_external_url: false,
 })
 
+/**
+ * The value of a field with no file, in the shape Storyblok's own asset field
+ * uses: an asset whose `filename` is empty. A fresh object every call, because
+ * the SDK's Vue hook mutates the previous content in place.
+ */
+export const emptyAsset = (): StoryblokAsset => ({
+  id: null,
+  fieldtype: 'asset',
+  filename: '',
+  name: '',
+  alt: '',
+  title: '',
+  copyright: '',
+  focus: '',
+  source: '',
+  is_external_url: false,
+  meta_data: {},
+})
+
 /** Reject malformed stored values rather than rendering a broken asset. */
 export const asStoryblokAsset = (content: unknown): StoryblokAsset | null => {
   if (!content || typeof content !== 'object') return null
@@ -335,6 +354,15 @@ export const asStoryblokAsset = (content: unknown): StoryblokAsset | null => {
   }
   return content as StoryblokAsset
 }
+
+/**
+ * The plugin's content is always an asset object, never null. The SDK's Vue
+ * hook (@storyblok/field-plugin 1.7.x) updates object content in place and
+ * throws when the next value is null, which would leave a removed file on
+ * screen.
+ */
+export const storedAsset = (content: unknown): StoryblokAsset =>
+  asStoryblokAsset(content) ?? emptyAsset()
 
 /**
  * Decide how to render the saved asset. Kontainer is a DAM, so most files are

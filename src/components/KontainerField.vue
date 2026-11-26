@@ -4,6 +4,7 @@ import { useFieldPlugin } from '@storyblok/field-plugin/vue3'
 import {
   approxBytesFromDataUrl,
   asStoryblokAsset,
+  emptyAsset,
   externalAssetFromFile,
   fileNameOf,
   formatBytes,
@@ -16,6 +17,7 @@ import {
   resolveMaxImportBytes,
   resolveMode,
   resolveRegion,
+  storedAsset,
   type KontainerFile,
   type StoryblokAsset,
 } from '../lib/kontainer'
@@ -23,7 +25,7 @@ import {
 const plugin = useFieldPlugin({
   enablePortalModal: true,
   validateContent: (content: unknown) => ({
-    content: asStoryblokAsset(content),
+    content: storedAsset(content),
   }),
 })
 
@@ -84,7 +86,7 @@ const closePicker = () => {
 const removeAsset = () => {
   if (plugin.type !== 'loaded') return
   previewFailed.value = false
-  plugin.actions.setContent(null)
+  plugin.actions.setContent(emptyAsset())
 }
 
 const fail = (message: string) => {
