@@ -171,34 +171,40 @@ Still stuck? Email [support@kontainer.com](mailto:support@kontainer.com).
 
 ## Development
 
-Requires Node.js 22 (see `.nvmrc`).
+The flake provides Node.js (the major version in `.nvmrc`), pnpm and the
+GitHub CLI. Enter it with `nix develop`, or let direnv load it from `.envrc`.
+Without Nix, use Node.js 24 and pnpm 11.
 
 ```sh
-npm install
-npm run dev        # Vite dev server on http://localhost:8080
-npm test           # unit tests
-npm run typecheck
-npm run build      # writes dist/index.js
+pnpm install
+pnpm dev           # Vite dev server on http://localhost:8080
+pnpm test          # unit tests
+pnpm typecheck
+pnpm build         # writes dist/index.js
+nix build          # tests and builds result/kontainer-storyblok-plugin.js
 ```
 
 To try the plugin while developing, open the
 [Storyblok field plugin sandbox](https://plugin-sandbox.storyblok.com/field-plugin/),
 point it at the dev server, and set the field options there.
 
+When a dependency change alters `pnpm-lock.yaml`, `nix build` fails with a
+hash mismatch. Copy the `got:` hash into `pnpmDeps.hash` in `nix/package.nix`.
+
 ### Releasing
 
 1. Update `CHANGELOG.md` and the `version` in `package.json`.
-2. Build and attach the bundle to a GitHub release under the stable asset name
-   the installation link points at:
+2. Build with Nix and attach the bundle to a GitHub release. The installation
+   link downloads the asset named `kontainer-storyblok-plugin.js` from the
+   latest release, which is the file `nix build` produces:
 
    ```sh
-   npm run build
-   cp dist/index.js kontainer-storyblok-plugin.js
-   gh release create "v$(node -p 'require("./package.json").version')" kontainer-storyblok-plugin.js --notes-file CHANGELOG.md
+   nix build
+   gh release create "v$(node -p 'require("./package.json").version')" result/kontainer-storyblok-plugin.js
    ```
 
 3. Kontainer maintainers also deploy to the Partner Portal with
-   `npm run deploy`, which needs `STORYBLOK_PERSONAL_ACCESS_TOKEN` in
+   `pnpm run deploy`, which needs `STORYBLOK_PERSONAL_ACCESS_TOKEN` in
    `.env.local` (see `.env.local.example`). Never change the `--name` in that
    script: it is the field type id stored in every space that uses the plugin,
    so renaming it breaks their fields.

@@ -20,11 +20,9 @@ dist-ssr
 # Vite cache
 .vite
 
-# Yarn (PnP) — keep .pnp.* tracked, ignore regenerated state
-.yarn/install-state.gz
-.yarn/unplugged
-.yarn/cache
-.yarn/build-state.yml
+# Nix
+.direnv/
+result
 
 # Editor directories and files
 .vscode/*

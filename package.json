@@ -1,5 +1,5 @@
 {
-  "name": "kontainer-plugin-storyblok",
+  "name": "kontainer-storyblok-plugin",
   "description": "Storyblok field plugin that lets editors pick files from Kontainer's DAM in CMS mode.",
   "version": "0.1.0",
   "license": "MIT",
@@ -10,6 +10,7 @@
     "url": "https://github.com/Kontainer-Dam-and-Pim/kontainer-storyblok-plugin.git"
   },
   "type": "module",
+  "packageManager": "pnpm@11.27.0",
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
@@ -17,7 +18,7 @@
     "typecheck": "vue-tsc",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && npx @storyblok/field-plugin-cli@latest deploy --name kontainer --scope partner-portal --skipPrompts"
+    "deploy": "pnpm run build && pnpm dlx @storyblok/field-plugin-cli@latest deploy --name kontainer --scope partner-portal --skipPrompts"
   },
   "dependencies": {
     "@storyblok/field-plugin": "1.7.1",
