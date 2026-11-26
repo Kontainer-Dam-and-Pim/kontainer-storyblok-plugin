@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 — 2026-11-26
+
+### Fixed
+
+- **Remove asset** now clears the field. The removed file used to stay on
+  screen even though Storyblok had already saved the empty value. An empty
+  field now holds an asset with an empty `filename`, the same as Storyblok's
+  own asset field.
+
+### Changed
+
+- All dependencies are updated to their latest releases, including Vite 8,
+  Vitest 5 and the Storyblok field-plugin SDK 1.7.2. TypeScript stays on 6,
+  because vue-tsc cannot run on TypeScript 7 yet.
+
 ## 1.0.0 — 2026-11-26
 
 First public release, installable from GitHub.
