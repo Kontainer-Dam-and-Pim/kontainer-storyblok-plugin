@@ -1,7 +1,7 @@
 {
   "name": "kontainer-storyblok-plugin",
   "description": "Storyblok field plugin that lets editors pick files from Kontainer's DAM in CMS mode.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "MIT",
   "author": "Kontainer",
   "private": true,

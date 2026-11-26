@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0 — 2026-11-26
+
+First public release, installable from GitHub.
+
+### Added
+
+- A downloadable bundle, `kontainer-storyblok-plugin.js`, attached to every
+  GitHub release, so a Storyblok admin can add the plugin under **My plugins**
+  and assign it to their spaces.
+- A Nix flake that tests and builds the bundle, and a development shell with
+  Node.js, pnpm and the GitHub CLI.
+
+### Changed
+
+- The README is rewritten for customers: installation, field setup, the stored
+  value, import mode and troubleshooting.
+- The project uses pnpm instead of Yarn, and Node.js 24.
+- Vue resolves to the current 3.5 release.
+
 ## 0.1.0 — 2026-09-24
 
 First release prepared for Partner Portal distribution.
