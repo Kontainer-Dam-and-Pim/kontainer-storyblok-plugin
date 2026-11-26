@@ -21,20 +21,20 @@
     "deploy": "pnpm run build && pnpm dlx @storyblok/field-plugin-cli@latest deploy --name kontainer --scope partner-portal --skipPrompts"
   },
   "dependencies": {
-    "@storyblok/field-plugin": "1.7.1",
-    "vue": "^3.2.47"
+    "@storyblok/field-plugin": "1.7.2",
+    "vue": "^3.5.46"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "6.6.3",
-    "@testing-library/user-event": "14.6.1",
+    "@testing-library/jest-dom": "8.0.0",
+    "@testing-library/user-event": "14.6.13",
     "@testing-library/vue": "8.1.0",
-    "@vitejs/plugin-vue": "^4.6.2",
-    "@vitest/ui": "2.1.9",
-    "jsdom": "23.0.1",
-    "typescript": "5.8.2",
-    "vite": "5.4.16",
-    "vite-plugin-css-injected-by-js": "3.1.0",
-    "vitest": "2.1.9",
-    "vue-tsc": "2.2.8"
+    "@vitejs/plugin-vue": "^6.0.11",
+    "@vitest/ui": "5.1.2",
+    "jsdom": "31.0.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.8",
+    "vite-plugin-css-injected-by-js": "5.0.3",
+    "vitest": "5.1.2",
+    "vue-tsc": "3.3.14"
   }
 }

@@ -188,8 +188,9 @@ To try the plugin while developing, open the
 [Storyblok field plugin sandbox](https://plugin-sandbox.storyblok.com/field-plugin/),
 point it at the dev server, and set the field options there.
 
-When a dependency change alters `pnpm-lock.yaml`, `nix build` fails with a
-hash mismatch. Copy the `got:` hash into `pnpmDeps.hash` in `nix/package.nix`.
+When a dependency change alters `pnpm-lock.yaml`, update the dependency hash
+in `nix/package.nix`: set `pnpmDeps.hash` to `""`, run `nix build`, and copy
+the `got:` hash it reports back into `pnpmDeps.hash`.
 
 ### Releasing
 
