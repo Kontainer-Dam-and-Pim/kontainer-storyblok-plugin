@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 — 2026-11-26
+
+### Fixed
+
+- The picker no longer draws its own close button over Kontainer. Storyblok's
+  modal already has one, and the extra button covered Kontainer's close button
+  in the file viewer.
+
 ## 1.0.1 — 2026-11-26
 
 ### Fixed
