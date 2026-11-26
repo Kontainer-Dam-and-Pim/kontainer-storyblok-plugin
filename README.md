@@ -1,182 +1,208 @@
-# Kontainer Asset Picker — Storyblok Field Plugin
+# Kontainer Asset Picker for Storyblok
 
-A Storyblok [field plugin](https://www.storyblok.com/docs/plugins/field-plugins/introduction)
-that opens Kontainer in CMS mode and lets editors pick a file without leaving
-the Visual Editor.
+Pick images, videos and files from your [Kontainer](https://kontainer.com) DAM
+directly in Storyblok's Visual Editor, without downloading and re-uploading
+them.
 
-## Modes
+The plugin adds a **Select from Kontainer** field to any block. Editors browse,
+search and filter your Kontainer library as usual, optionally apply a download
+template (crop, resize, format), and pick a file. Storyblok stores a standard
+asset value that points at Kontainer's CDN, so Kontainer stays the single
+source of truth: replace a file in Kontainer and it updates everywhere it is
+used.
 
-| Mode | What gets stored | Credential needed |
-| --- | --- | --- |
-| `external` (default) | A Storyblok asset with `is_external_url: true`, pointing at Kontainer's CDN | none |
-| `import` | A real, self-hosted Storyblok asset (`a.storyblok.com`) — the bytes are copied in | a Storyblok Management API token |
+## Features
 
-**Use `external` unless you have a specific reason not to.** Kontainer stays
-the source of truth, so replacing a file in the DAM updates it everywhere it is
-used; nothing is copied, so file size is irrelevant; and setup is a single
-option with no credential in play.
+- **No copies.** Files are linked from Kontainer's CDN, not uploaded to
+  Storyblok. File size does not matter and nothing goes out of sync.
+- **Metadata travels with the file.** Alt text, title and the focal point set
+  in Kontainer are carried onto the Storyblok asset.
+- **Download templates.** Pick a crop or resized rendition in the picker; its
+  CDN URL is what gets stored.
+- **Works with every file type.** Images show a preview; PDFs, videos and other
+  files show a card with their file type.
+- **Standard asset value.** The field returns the same shape as Storyblok's own
+  asset field, so your frontend code needs no special handling.
+- **Optional import mode** for spaces that require every asset to live in
+  Storyblok's own asset library.
 
-The tradeoff: Storyblok's image service cannot transform an external URL. Use
-Kontainer's own transformation parameters on the stored URL instead.
+## Requirements
 
-`import` exists for spaces that require every asset to be self-hosted. It is
-opt-in per field, and its security tradeoff is real — see below.
+- Admin rights on the Storyblok space you are installing into.
+- A Kontainer account (`https://yourcompany.kontainer.com`) with the Storyblok
+  integration enabled. Ask your Kontainer account manager to switch it on; the
+  picker cannot open inside Storyblok without it.
 
-## Configuration
+Field plugins are available on every Storyblok plan.
 
-Field plugin options are set **per field**, by a space admin, in the block
-schema. Storyblok does not ship option *values* with the plugin ("the option
-values are not shared. Only keys are configured for security reasons"), so
-every field using this plugin needs its own values.
+## Installation
 
-| Option | Required | Value |
-| --- | --- | --- |
-| `kontainerHost` | yes | Kontainer host, with or without protocol — e.g. `company.kontainer.com` |
-| `mode` | no | `external` (default) or `import` |
-| `storyblokRegion` | import only | `eu` (default), `us`, `ca`, `ap`, `cn` |
-| `storyblokManagementToken` | import only | A [Personal Access Token](https://app.storyblok.com/#/me/account?tab=token) with asset write access |
-| `maxImportMb` | no | Import size ceiling, default `50` |
+You add the plugin to your own Storyblok account once, then assign it to the
+spaces that should use it.
 
-> **Security tradeoff in `import` mode.** The Management API token is a plugin
-> option, so it is delivered to the browser of every editor who uses the field.
-> Storyblok provides no sanctioned place for a credential in a field plugin —
-> space-level settings are for Space and Tool plugins only, and their docs state
-> plainly that "credentials such as secrets and passwords should not be stored"
-> there.
->
-> Mint a **scoped** token for this: Storyblok personal access tokens now take
-> granular scopes and a space restriction, so give it Assets only, on the one
-> space that needs it. That bounds the exposure to that space's asset library
-> instead of the whole account. If even that is unacceptable, the upload has to
-> move behind a Kontainer-hosted endpoint that holds the credential server-side.
->
-> Legacy unscoped tokens stop working on 30 November 2026, when Storyblok
-> revokes them regardless of their own expiry.
+1. **Download the plugin file:**
+   [kontainer-storyblok-plugin.js](https://github.com/Kontainer-Dam-and-Pim/kontainer-storyblok-plugin/releases/latest/download/kontainer-storyblok-plugin.js).
+   If it opens in your browser, right-click the link and choose **Save link as**.
+2. In Storyblok, click your avatar and go to **My account → My plugins**, then
+   click **New**.
+3. Name the plugin, for example `yourcompany-kontainer`. Plugin names are
+   unique across all of Storyblok, so include your company name.
+4. Open the plugin, delete the example code in the editor, and paste in the
+   entire contents of the downloaded file.
+5. Click **Save**, then **Publish**.
+6. Open **Settings & Details** and select your space under
+   **Assigned Spaces**.
 
-Set `storyblokRegion` explicitly for any non-EU space. The plugin can infer the
-region from the editor origin, but only in Chromium — inside the sandboxed
-plugin iframe `document.referrer` is usually empty and `ancestorOrigins` does
-not exist in Firefox or Safari, so an unset option there means the EU host and
-a 401.
+To update later, download the latest file again, paste it over the old code,
+and publish.
 
-## What gets stored
+## Add the field to a block
 
-Both modes save a standard Storyblok `asset` value with the Kontainer reference
-preserved in `meta_data`:
+1. In your space, open **Block Library** and choose the block that should get
+   the picker.
+2. Add a new field, set its type to **Plugin**, and choose the plugin you
+   created during installation.
+3. Add the option `kontainerHost` and set it to your Kontainer domain, for
+   example `yourcompany.kontainer.com`. The `https://` prefix is optional.
+
+Storyblok stores plugin options per field, so set `kontainerHost` on every
+field that uses the picker.
+
+## Pick a file
+
+Open a story that uses the block and click **Select from Kontainer**. The first
+time, log in with your normal Kontainer username and password. Browse to a
+file, optionally apply a download template, and select it.
+
+The field then shows a preview and the file name. **Replace asset** picks a
+different file; **Remove asset** clears the field.
+
+## Field options
+
+| Option                     | Required         | Value                                                                                                  |
+| -------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `kontainerHost`            | Yes              | Your Kontainer domain, e.g. `yourcompany.kontainer.com`                                                |
+| `mode`                     | No               | `external` (default) links the file from Kontainer. `import` copies it into Storyblok's asset library. |
+| `storyblokRegion`          | Import mode only | `eu` (default), `us`, `ca`, `ap` or `cn`                                                               |
+| `storyblokManagementToken` | Import mode only | A Storyblok personal access token with asset write access                                              |
+| `maxImportMb`              | No               | Largest file import mode accepts, in MB. Default `50`.                                                 |
+
+## Use the asset in your frontend
+
+The field returns a standard Storyblok asset object:
+
+```js
+const { filename, alt, title, focus } = story.content.hero
+```
+
+Request the file from `filename`; it is served by Kontainer's CDN.
+
+Storyblok's image service cannot transform an external URL. Control size and
+format with a download template chosen in the picker, or with Kontainer's own
+transformation parameters on the URL.
+
+The full stored value looks like this:
 
 ```jsonc
 {
-  "id": null,                     // the Storyblok asset id in import mode
+  "id": null,
   "fieldtype": "asset",
-  "filename": "https://company.kontainer.com/file/123/hero.jpg",
+  "filename": "https://yourcompany.kontainer.com/file/123/hero.jpg",
   "name": "hero.jpg",
   "alt": "A hero image",
   "title": "Campaign hero",
+  "copyright": "",
+  "focus": "400x300:401x301",
   "source": "kontainer",
   "is_external_url": true,
   "meta_data": {
-    "kontainer_host": "company.kontainer.com",
+    "kontainer_host": "yourcompany.kontainer.com",
     "kontainer_file_id": 123,
     "kontainer_folder_id": 7,
-    "kontainer_url": "https://company.kontainer.com/file/123/hero.jpg",
-    "kontainer_thumbnail_url": "https://company.kontainer.com/thumb/123.jpg",
+    "kontainer_url": "https://yourcompany.kontainer.com/file/123/hero.jpg",
+    "kontainer_thumbnail_url": "https://yourcompany.kontainer.com/thumb/123.jpg",
     "kontainer_extension": "jpg",
     "kontainer_type": "image",
     "kontainer_focal_point_x": 400,
     "kontainer_focal_point_y": 300,
-    "kontainer_picked_at": "2026-09-21T10:00:00.000Z"
-  }
+    "kontainer_picked_at": "2026-09-21T10:00:00.000Z",
+  },
 }
 ```
 
-A focal point set in Kontainer is carried across in two forms. `focus` holds
-Storyblok's own `X1xY1:X2xY2` notation, ready for
-`/filters:focal(${asset.focus})` on an imported asset. The raw pixel
-coordinates stay in `meta_data`, because Storyblok's image service does not
-transform an external URL — for a linked file, pass them to Kontainer's own
-transformation parameters instead.
+- `alt` and `title` come from the file's texts in Kontainer.
+- `focus` is the Kontainer focal point in Storyblok's `X1xY1:X2xY2` notation.
+  When a download template resizes the image, the point is scaled to the
+  rendition. The raw pixel coordinates are also kept in `meta_data` for use
+  with Kontainer's transformation parameters.
+- `meta_data.kontainer_file_id` identifies the file in Kontainer.
 
-When a download template applies, `url` points at a resized rendition while
-Kontainer stores the focal point against the original, so the coordinates are
-scaled into the rendition's dimensions before being written.
+## Import mode
 
-`kontainer_file_id` is what any future de-duplication or "the file changed in
-Kontainer" re-sync will key on. Adding it to values that are already saved in
-customer spaces would mean a Management API migration, which is why it is
-written from the first release.
+Some teams require every asset to be hosted by Storyblok itself. Setting
+`mode` to `import` copies the picked file into the space's asset library
+instead of linking it. The file then becomes a normal Storyblok asset that
+Storyblok's image service can transform.
 
-## How it works
+Before switching a field to import mode:
 
-1. The field renders a **Select from Kontainer** button, opening a modal iframe
-   with Kontainer in CMS mode.
-2. The editor authenticates (if needed) and picks a file.
-3. Kontainer posts the file back:
-   ```js
-   { source: 'kontainer', action: 'kontainer-insert', data: { ...fileInfo, dataUrl } }
-   ```
-   The plugin only accepts this message from `https://<kontainerHost>`.
-4. In `external` mode the Kontainer URL is stored and `dataUrl` is discarded.
-   In `import` mode the bytes are uploaded to the Management API (signed upload
-   → S3 → `finish_upload`) and the resulting Storyblok asset is stored.
+- **The copy no longer follows Kontainer.** Replacing the file in Kontainer
+  does not update the Storyblok copy.
+- **The token reaches every editor's browser.** `storyblokManagementToken` is
+  a field option, and Storyblok delivers field options to the browser of
+  everyone who uses the field. Create a dedicated token with the **Assets**
+  scope only, restricted to the one space that needs it. Never reuse a token
+  with access to your whole account.
+- **Set `storyblokRegion` for spaces outside the EU.** Without it the plugin
+  can only guess the region, and in Firefox and Safari it falls back to the EU
+  API, which rejects the token for a non-EU space.
 
-> Kontainer currently base64-encodes the file into `dataUrl` on every pick, even
-> in `external` mode where it is thrown away. Suppressing that for external
-> fields is a worthwhile optimisation on the Kontainer side.
+## Troubleshooting
 
-## Kontainer backend requirements
+| Symptom                                                        | Cause                                                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The **Select from Kontainer** button is greyed out             | `kontainerHost` is not set on this field, or the field is in import mode without a token. The field shows a hint saying which.                    |
+| The picker opens but stays blank or says it refused to connect | The Storyblok integration is not enabled on your Kontainer account. Contact your account manager.                                                 |
+| You pick a file and nothing happens                            | `kontainerHost` does not exactly match the Kontainer domain the picker runs on. Use the `yourcompany.kontainer.com` address, not a custom domain. |
+| Import fails with a 401                                        | The token is wrong or expired, or `storyblokRegion` is missing for a non-EU space.                                                                |
+| The preview shows a file card instead of an image              | Expected for PDFs, videos and other non-image files.                                                                                              |
 
-1. **Enable the Storyblok integration** for the client (admin toggle
-   `switch_storyblok_integration_enabled`). This drives the CSP/cookie config
-   below.
-2. **CSP `frame-ancestors`** — Kontainer is framed two levels deep and the whole
-   ancestor chain is checked, so the allowlist needs both the plugin serving
-   origin and the editor:
-   - `https://plugins.storyblok.com` — deployed field plugins
-   - `https://plugin-sandbox.storyblok.com` — the sandbox, for development
-   - `https://app.storyblok.com`, plus `https://app-us.storyblok.com`,
-     `https://app-ca.storyblok.com`, `https://app-ap.storyblok.com` and
-     `https://app.storyblokchina.cn` for non-EU customers
+Still stuck? Email [support@kontainer.com](mailto:support@kontainer.com).
 
-   Configured under `kontainer.integrations.storyblok.origins`. Note that the
-   sandbox and the deployed origin differ — allowlisting only the sandbox
-   produces a blank frame on the first real install.
-3. **`connect-src` / CDN CORS** — the CMS-mode page fetches file bytes from the
-   CDN to build the data URL; the Storyblok-enabled client gets the same CDN
-   allowances as Figma.
-4. **`SameSite=None`** cookies — so the embedded cross-site Kontainer iframe
-   stays authenticated. Enabled when the integration is on.
+## Development
 
-## Develop
+Requires Node.js 22 (see `.nvmrc`).
 
 ```sh
-npm run dev          # vite dev server on :8080
-npm test             # unit tests
+npm install
+npm run dev        # Vite dev server on http://localhost:8080
+npm test           # unit tests
 npm run typecheck
-npm run build
+npm run build      # writes dist/index.js
 ```
 
-Open the [Sandbox](https://plugin-sandbox.storyblok.com/field-plugin/), point it
-at the dev server, set the options, and exercise the picker.
+To try the plugin while developing, open the
+[Storyblok field plugin sandbox](https://plugin-sandbox.storyblok.com/field-plugin/),
+point it at the dev server, and set the field options there.
 
-## Deploy
+### Releasing
 
-Issue a [personal access token](https://app.storyblok.com/#/me/account?tab=token),
-copy `.env.local.example` to `.env.local`, set `STORYBLOK_PERSONAL_ACCESS_TOKEN`,
-then:
+1. Update `CHANGELOG.md` and the `version` in `package.json`.
+2. Build and attach the bundle to a GitHub release under the stable asset name
+   the installation link points at:
 
-```sh
-npm run deploy
-```
+   ```sh
+   npm run build
+   cp dist/index.js kontainer-storyblok-plugin.js
+   gh release create "v$(node -p 'require("./package.json").version')" kontainer-storyblok-plugin.js --notes-file CHANGELOG.md
+   ```
 
-There is no CI deployment: the repository lives on Bitbucket Server, so deploys
-are run by hand from a checkout.
+3. Kontainer maintainers also deploy to the Partner Portal with
+   `npm run deploy`, which needs `STORYBLOK_PERSONAL_ACCESS_TOKEN` in
+   `.env.local` (see `.env.local.example`). Never change the `--name` in that
+   script: it is the field type id stored in every space that uses the plugin,
+   so renaming it breaks their fields.
 
-This deploys as `kontainer` at `--scope partner-portal`. **Never change the
-`--name`**: it is the field type id stored in every customer's component
-schema, so renaming it orphans their fields. Pass `--no-publish` to upload a
-build without releasing it to installed spaces.
+## License
 
-Distribution is then Partner Portal → **Extensions → New Extension**, attaching
-this plugin under the Storyblok field types, filling in icon/intro/description/
-author/website, and sharing the install link. Customers need space **admin**
-rights to install.
+[MIT](./LICENSE) © Kontainer

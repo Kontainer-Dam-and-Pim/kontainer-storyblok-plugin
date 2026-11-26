@@ -7,7 +7,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "ssh://git@git.konform.com:7999/konform/kontainer-plugin-storyblok.git"
+    "url": "https://github.com/Kontainer-Dam-and-Pim/kontainer-storyblok-plugin.git"
   },
   "type": "module",
   "scripts": {
